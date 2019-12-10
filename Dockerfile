@@ -45,8 +45,8 @@ RUN cd /dockerui/api/ && \
     ln -s /usr/local/python3/bin/gunicorn /usr/local/bin/
 
 RUN chmod +x /dockerui/entrypoint.sh && \
-    mv nginx.conf /etc/nginx/nginx.conf && \
-    mv supervisord.conf /etc/supervisord.conf && \
-    mv supervisor_gunicorn.ini /etc/supervisord.d/supervisor_gunicorn.ini
+    mv /dockerui/nginx.conf /etc/nginx/nginx.conf && \
+    mv /dockerui/supervisord.conf /etc/supervisord.conf && \
+    mv /dockerui/supervisor_gunicorn.ini /etc/supervisord.d/supervisor_gunicorn.ini
 
 ENTRYPOINT ["/dockerui/entrypoint.sh"]
