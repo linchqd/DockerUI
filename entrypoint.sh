@@ -34,4 +34,4 @@ fi
 sed -i "s/API_SERVER/$API_SERVER/" /dockerui/gunicorn.py
 sed -i "s/API_SERVER/$API_SERVER/" /etc/nginx/nginx.conf
 
-/usr/bin/supervisord -c /etc/supervisord.conf
+/usr/local/bin/supervisord -c /etc/supervisord.conf

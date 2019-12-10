@@ -14,13 +14,13 @@ RUN npm config set registry https://registry.npm.taobao.org && \
 FROM centos:centos7
 
 RUN yum -y install --setopt=tsflags=nodocs epel-release && \
-    yum -y install wget nginx supervisor redhat-lsb-core net-tools vim openssl-devel bzip2-devel expat-devel \
+    yum -y install wget nginx redhat-lsb-core net-tools vim openssl-devel bzip2-devel expat-devel \
     gdbm-devel readline-devel sqlite-devel gcc unzip libffi-devel lzma zlib-devel openssl-static \
     ncurses-devel readline-devel tk-devel db4-devel libpcap-devel xz-devel && \
     yum clean all
 
 RUN cd /usr/local/src/ && \
-    wget http://10.0.2.15/Python-3.7.5.tgz && \
+    wget http://npm.taobao.org/mirrors/python/3.7.5/Python-3.7.5.tgz && \
 #    wget https://www.python.org/ftp/python/3.7.5/Python-3.7.5.tgz && \
     tar zxvf Python-3.7.5.tgz && \
     cd Python-3.7.5 && \
@@ -35,18 +35,20 @@ RUN mkdir /dockerui
 
 COPY --from=0 /tmp/dockerui /dockerui
 
-COPY . /dockerui
+COPY ./ /dockerui
 
 RUN cd /dockerui/api/ && \
     pip3 config set global.index-url https://mirrors.aliyun.com/pypi/simple/  && \
     pip3 install --upgrade pip && \
     pip3 install --no-cache-dir -r requirements.txt && \
-    pip3 install --no-cache-dir gunicorn gevent && \
-    ln -s /usr/local/python3/bin/gunicorn /usr/local/bin/
+    pip3 install --no-cache-dir supervisor gunicorn gevent && \
+    ln -s /usr/local/python3/bin/gunicorn /usr/local/bin/ && \
+    ln -s /usr/local/python3/bin/supervisor* /usr/local/bin/
 
 RUN chmod +x /dockerui/entrypoint.sh && \
     mv /dockerui/nginx.conf /etc/nginx/nginx.conf && \
     mv /dockerui/supervisord.conf /etc/supervisord.conf && \
+    mkdir /etc/supervisord.d/ && \
     mv /dockerui/supervisor_gunicorn.ini /etc/supervisord.d/supervisor_gunicorn.ini
 
 ENTRYPOINT ["/dockerui/entrypoint.sh"]
