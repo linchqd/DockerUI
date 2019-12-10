@@ -2,6 +2,9 @@
 
 ## Project setup
 ```
+git clone -b web https://github.com/linchqd/DockerUI.git web
+cd web
+npm config set registry http://registry.npm.taobao.org/
 npm install
 ```
 
@@ -12,22 +15,8 @@ npm run serve
 
 ### Compiles and minifies for production
 ```
-npm run build
-```
-
-### Run your unit tests
-```
-npm run test:unit
-```
-
-### Run your end-to-end tests
-```
-npm run test:e2e
-```
-
-### Lints and fixes files
-```
-npm run lint
+docker build --rm -t app:v1 .
+docker run --name app -d -p 80:80 app:v1
 ```
 
 ### Customize configuration
