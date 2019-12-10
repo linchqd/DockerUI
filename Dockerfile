@@ -37,6 +37,13 @@ COPY --from=0 /tmp/dockerui /dockerui
 
 COPY . /dockerui
 
+RUN cd /dockerui/api/ && \
+    pip3 config set global.index-url https://mirrors.aliyun.com/pypi/simple/  && \
+    pip3 install --upgrade pip && \
+    pip3 install --no-cache-dir -r requirements.txt && \
+    pip3 install --no-cache-dir gunicorn gevent && \
+    ln -s /usr/local/python3/bin/gunicorn /usr/local/bin/
+
 RUN chmod +x /dockerui/entrypoint.sh && \
     mv nginx.conf /etc/nginx/nginx.conf && \
     mv supervisord.conf /etc/supervisord.conf && \
