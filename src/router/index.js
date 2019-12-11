@@ -36,6 +36,11 @@ const routes = [
     component: () => import('../views/Login.vue')
   },
   {
+    path: '/console',
+    name: 'console',
+    component: () => import('../views/Console.vue')
+  },
+  {
     path: '/deny',
     name: 'deny',
     component: () => import('../views/Deny.vue')
