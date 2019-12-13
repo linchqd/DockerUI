@@ -3,10 +3,10 @@
 
 
 from flask import Flask
+from flask_sockets import Sockets
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_restful import Api
-from flask_socketio import SocketIO
 import config
 
 
@@ -15,4 +15,4 @@ api = Api(app)
 app.config.from_object(config)
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
-socketio = SocketIO(app)
+sockets = Sockets(app)
