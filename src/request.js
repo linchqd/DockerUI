@@ -105,10 +105,10 @@ httpTools.install = function (Vue, router) {
   Vue.prototype.$http = axios
   Vue.prototype.$deepCopy = deepCopy
   Vue.prototype.$sortArr = sortArr
-  Vue.prototype.$custom_message = function (type, message) {
+  Vue.prototype.$custom_message = function (type, message, time = 5000) {
     this.$message({
       showClose: true,
-      duration: 5000,
+      duration: time,
       message: message,
       type: type
     })

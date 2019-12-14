@@ -4,16 +4,18 @@
 <script>
 import 'xterm/css/xterm.css'
 import { Terminal } from 'xterm'
-// import { FitAddon } from 'xterm-addon-fit'
+import { FitAddon } from 'xterm-addon-fit'
 import { AttachAddon } from 'xterm-addon-attach'
 
 export default {
   data () {
     return {
-      data: { 'token': '123456' },
+      data: { 'token': '123456', 'connect_info': { 'host': '192.168.10.60' } },
       copy: '',
       terminal: null,
-      webSocket: null
+      webSocket: null,
+      cols: 0,
+      rows: 0
     }
   },
   methods: {
@@ -25,31 +27,43 @@ export default {
     },
     socketError (event) {
       console.log('Error: ' + event)
-    },
-    socketMessage (event) {
-      this.terminal.write(event.data)
     }
   },
   mounted () {
+    this.cols = Math.floor(window.innerWidth / 9)
+    this.rows = Math.floor(window.innerHeight / 17)
+    this.data.connect_info['xterm_width'] = this.cols
+    this.data.connect_info['xterm_height'] = this.rows
     this.terminal = new Terminal({
-      cols: 92,
-      rows: 22,
+      cols: this.cols,
+      rows: this.rows,
       cursorBlink: true,
       cursorStyle: 'underline',
       scrollback: 800,
       tabStopWidth: 8,
       screenKeys: true
     })
-    // const fitAddon = new FitAddon()
-    // this.terminal.loadAddon(fitAddon)
+    const fitAddon = new FitAddon()
+    this.terminal.loadAddon(fitAddon)
     this.terminal.open(document.getElementById('terminal'), true)
+    fitAddon.fit()
+    // this.webSocket = new WebSocket('ws://' + window.location.host + '/webshell')
     this.webSocket = new WebSocket('ws://127.0.0.1:8000/webshell')
     this.webSocket.onopen = this.socketConnected
     this.webSocket.onclose = this.socketClosed
     this.webSocket.onerror = this.socketError
-    this.webSocket.onmessage = this.socketMessage
     this.terminal.loadAddon(new AttachAddon(this.webSocket))
-    // fitAddon.fit()
+    this.terminal._initialized = true
+    this.terminal.onSelectionChange(() => {
+      if (this.terminal.hasSelection()) {
+        document.execCommand('Copy')
+        this.$custom_message('success', 'copy success', 1000)
+      }
+    })
+  },
+  beforeDestroy () {
+    this.webSocket.close()
+    this.terminal.dispose()
   }
 }
 </script>
