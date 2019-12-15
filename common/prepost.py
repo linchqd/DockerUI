@@ -16,8 +16,6 @@ def init_app(app):
 def login_verify():
     if request.path == '/accounts/login/':
         return None
-    if request.path.startswith('/webshell'):
-        return None
     token = request.headers.get('X-TOKEN')
     if token and len(token) == 32:
         g.user = User.query.filter_by(access_token=token).first()

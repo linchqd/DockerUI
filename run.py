@@ -3,14 +3,15 @@
 
 
 from app import app, api, sockets
-from resources import accounts
+from resources import accounts, assets
 from common.prepost import init_app
 from resources.assets.ws import ws_blueprint
 
 
 init_app(app)
 accounts.add_resource(api)
-sockets.register_blueprint(ws_blueprint, url_prefix='/')
+assets.add_resource(api)
+sockets.register_blueprint(ws_blueprint, url_prefix='/ws/')
 
 if __name__ == '__main__':
     from gevent import pywsgi, monkey

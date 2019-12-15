@@ -3,7 +3,7 @@
 
 
 from flask_restful import Resource, request, abort
-from common.MaSchema import PermissionSchema, Permission
+from resources.accounts.MaSchema import PermissionSchema, Permission
 from common.Authentication import permission_required
 
 

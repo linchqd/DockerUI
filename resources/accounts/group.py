@@ -6,7 +6,7 @@ from flask_restful import Resource, reqparse, request, abort
 from flask import g
 
 from resources.accounts.models import Group
-from common.MaSchema import GroupSchema, UserSchema, User, Role, Permission
+from resources.accounts.MaSchema import GroupSchema, UserSchema, User, Role, Permission
 from common.Authentication import permission_required
 
 
