@@ -27,7 +27,10 @@ const routes = [
       { path: 'accounts/roles/roleList', name: 'roles_roleList', component: () => import('../components/accounts/roles/RoleList.vue'), meta: { permission: true } },
       { path: 'accounts/roles/roleEdit/:name', name: 'roles_roleEdit', component: () => import('../components/accounts/roles/RoleManage.vue'), meta: { permission: true } },
       { path: 'accounts/roles/roleInfo/:name', name: 'roles_roleInfo', component: () => import('../components/accounts/roles/RoleManage.vue'), meta: { permission: true } },
-      { path: 'accounts/permissions', name: 'permissions', component: () => import('../components/accounts/permissions/Permissions.vue'), meta: { permission: true } }
+      { path: 'accounts/permissions', name: 'permissions', component: () => import('../components/accounts/permissions/Permissions.vue'), meta: { permission: true } },
+      // assets
+      { path: 'assets/servers', redirect: { 'name': 'servers_serverList' }, meta: { permission: true } },
+      { path: 'assets/servers/serverList', name: 'servers_serverList', component: () => import('../components/assets/servers/ServerList.vue'), meta: { permission: true } }
     ]
   },
   {
@@ -36,7 +39,7 @@ const routes = [
     component: () => import('../views/Login.vue')
   },
   {
-    path: '/console',
+    path: '/webTerminal',
     name: 'console',
     component: () => import('../views/Console.vue')
   },

@@ -19,5 +19,16 @@ let menus = [{
     { url: '/accounts/roles/roleList', permission: '', name: 'roles', text: '角色管理', icon: 'user-secret', active: false },
     { url: '/accounts/permissions', permission: '', name: 'permissions', text: '权限管理', icon: 'user-lock', active: false }
   ]
-}]
+},
+{
+  text: '资产管理',
+  icon: 'hand-holding-usd',
+  active: false,
+  is_expanded: false,
+  permission: 'assets',
+  secMenu: [
+    { url: '/assets/servers/serverList', permission: '', name: 'servers', text: '服务器管理', icon: 'server', active: false }
+  ]
+}
+]
 export default menus

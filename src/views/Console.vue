@@ -10,7 +10,7 @@ import { AttachAddon } from 'xterm-addon-attach'
 export default {
   data () {
     return {
-      data: { 'token': '123456', 'connect_info': { 'host': '192.168.10.60' } },
+      data: { 'token': '123456', 'connect_info': { 'host': '192.168.10.20' } },
       copy: '',
       terminal: null,
       webSocket: null,
@@ -47,8 +47,7 @@ export default {
     this.terminal.loadAddon(fitAddon)
     this.terminal.open(document.getElementById('terminal'), true)
     fitAddon.fit()
-    // this.webSocket = new WebSocket('ws://' + window.location.host + '/webshell')
-    this.webSocket = new WebSocket('ws://127.0.0.1:8000/webshell')
+    this.webSocket = new WebSocket('ws://' + window.location.host + '/api/ws/webTerminal/')
     this.webSocket.onopen = this.socketConnected
     this.webSocket.onclose = this.socketClosed
     this.webSocket.onerror = this.socketError
