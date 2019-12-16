@@ -49,7 +49,12 @@ class Server(Resource):
 
     @permission_required('server_update')
     def put(self):
-        pass
+        parse = reqparse.RequestParser()
+        data = self.add_arguments(parse).parse_args()
+        server = ServerModel.query.filter_by(ip=data.get('ip')).first()
+        if server:
+            if data.get('password'):
+                pass
 
     @permission_required('server_modify')
     def patch(self):
@@ -67,12 +72,15 @@ class Server(Resource):
             return {'data': '删除成功'}
         abort(404, message="server is not exists")
 
+    def add_or_update(self):
+        pass
+
     @staticmethod
     def add_arguments(parse):
         parse.add_argument('ip', type=regex_ip, required=True, help=u'ip: 缺少该参数或格式不正确', location='json')
         parse.add_argument('port', type=int, required=True, help=u'port: 缺少该参数或格式不正确', location='json')
         parse.add_argument('username', type=str, required=True, help=u'username: 缺少该参数或格式不正确', location='json')
-        parse.add_argument('password', type=str, required=True, help=u'password: 缺少该参数或格式不正确', location='json')
+        parse.add_argument('password', type=str, help=u'password: 缺少该参数或格式不正确', location='json')
         parse.add_argument('desc', type=str, help=u'desc: 格式不正确', location='json')
         parse.add_argument('zone', type=str, required=True, help=u'zone: 缺少该参数或格式不正确', location='json')
         return parse
