@@ -16,15 +16,16 @@
         <el-table-column prop="desc" label="描述" show-overflow-tooltip></el-table-column>
         <el-table-column prop="zone" label="位置" show-overflow-tooltip></el-table-column>
         <el-table-column prop="ctime" :formatter="formatDatetime" label="创建时间" show-overflow-tooltip></el-table-column>
-        <el-table-column label="操作" width="160">
+        <el-table-column label="操作" width="120">
           <template slot-scope="scope">
             <el-dropdown @command="handleCommand">
-              <span class="el-dropdown-link">
+              <span class="el-dropdown-link el-dropdown-link_1">
                 操作菜单<i class="el-icon-arrow-down el-icon--right"></i>
               </span>
               <el-dropdown-menu slot="dropdown">
-                <el-dropdown-item :command="{'func': 'doDel', 'id': scope.row.id}">黄金糕</el-dropdown-item>
-                <el-dropdown-item :command="scope.row.id">狮子头</el-dropdown-item>
+                <el-dropdown-item :command="{'opt': 'update', 'ip': scope.row.ip}" style="color:#409EFF;">更新</el-dropdown-item>
+                <el-dropdown-item :command="{'opt': 'shell', 'ip': scope.row.ip}" style="color:#409EFF;">shell</el-dropdown-item>
+                <el-dropdown-item :command="{'opt': 'del', 'id': scope.row.id}" style="color:#F56C6C;">删除</el-dropdown-item>
               </el-dropdown-menu>
             </el-dropdown>
           </template>
@@ -46,7 +47,7 @@
     <el-dialog :title="dialogFormTitle" :visible.sync="dialogFormVisible" :close-on-click-modal="false">
       <el-form ref="dialogForm" :model="dialogFormModel" :rules="rules" label-width="110px">
         <el-form-item prop="ip" label="服务器地址">
-            <el-input placeholder="请输入服务器地址" v-model="dialogFormModel.ip" auto-complete="off"></el-input>
+            <el-input placeholder="请输入服务器地址" v-model="dialogFormModel.ip" :disabled="dialogFormShowObj === 'Update'" auto-complete="off"></el-input>
         </el-form-item>
         <el-form-item prop="port" label="服务器端口">
             <el-input placeholder="请输入服务器端口" v-model="dialogFormModel.port" auto-complete="off"></el-input>
@@ -55,7 +56,7 @@
             <el-input placeholder="请输入用户名" v-model="dialogFormModel.username" auto-complete="off"></el-input>
         </el-form-item>
         <el-form-item prop="password" label="服务器密码">
-            <el-input placeholder="请输入服务器密码" type="password" v-model="dialogFormModel.password" auto-complete="off"></el-input>
+            <el-input placeholder="请输入服务器密码,更新服务器时可留空则不更新" type="password" v-model="dialogFormModel.password" auto-complete="off"></el-input>
         </el-form-item>
         <el-form-item prop="desc" label="描述">
             <el-input placeholder="请输入描述/备注" v-model="dialogFormModel.desc" auto-complete="off"></el-input>
@@ -99,7 +100,7 @@ export default {
           { required: true, message: '请输入用户名', trigger: 'blur' }
         ],
         password: [
-          { required: true, message: '请输入密码', trigger: 'blur' }
+          { message: '请输入密码', trigger: 'blur' }
         ],
         desc: [
           { message: '请输入描述/备注', trigger: 'blur' }
@@ -146,6 +147,21 @@ export default {
             })
           }
         })
+      } else if (this.dialogFormShowObj === 'Update') {
+        this.$refs.dialogForm.validate((pass) => {
+          if (pass) {
+            this.dialogFormLoading = true
+            this.$http.put('/api/assets/servers/', this.dialogFormModel).then(response => {
+              this.$custom_message('success', response.res)
+              this.dialogFormVisible = false
+              this.doGet()
+            }, error => {
+              this.$custom_message('error', error.res)
+            }).finally(() => {
+              this.dialogFormLoading = false
+            })
+          }
+        })
       }
     },
     doDel (ids = []) {
@@ -170,9 +186,6 @@ export default {
         }
       }
     },
-    goEdit (row) {
-      this.$router.push({ name: 'roles_roleEdit', params: { name: row.name } })
-    },
     formatDatetime (row) {
       let date = new Date(row.ctime)
       return dateFormat.formatDate(date, 'yyyy-MM-dd hh:mm:ss')
@@ -191,7 +204,26 @@ export default {
       this.dialogFormVisible = true
     },
     handleCommand (command) {
-      console.log(typeof command)
+      if (command.opt === 'del') {
+        this.doDel([command.id])
+      } else if (command.opt === 'shell') {
+        const { href } = this.$router.resolve({
+          name: 'console',
+          query: {
+            server: command.ip
+          }
+        })
+        window.open(href, '_blank')
+      } else if (command.opt === 'update') {
+        this.objs.some((value) => {
+          if (value.ip === command.ip) {
+            this.dialogFormTitle = '更新服务器'
+            this.dialogFormModel = this.$deepCopy(value)
+            this.dialogFormShowObj = 'Update'
+            this.dialogFormVisible = true
+          }
+        })
+      }
     }
   },
   created () {
