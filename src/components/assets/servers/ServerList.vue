@@ -4,7 +4,7 @@
       <span class="content-title-info">服务器列表</span>
       <el-input size="mini" clearable placeholder="输入任意字段过滤" v-model="search" class="content-search"></el-input>
       <el-button type="primary" plain size="mini" @click.native="doAdd">添加</el-button>
-      <el-button type="danger" plain size="mini" @click.native="deleteRoles(selectedRoles)">删除</el-button>
+      <el-button type="danger" plain size="mini" @click.native="doDel(selectedObj)">删除</el-button>
     </div>
     <div class="content-content">
       <el-table ref="multipleTable" @selection-change="handleSelectionChange" :data="objs.filter(searchFilter).slice((current_page - 1) * page_size, page_size * current_page)" tooltip-effect="dark" style="width: 100%">
@@ -18,8 +18,15 @@
         <el-table-column prop="ctime" :formatter="formatDatetime" label="创建时间" show-overflow-tooltip></el-table-column>
         <el-table-column label="操作" width="160">
           <template slot-scope="scope">
-            <el-button size="mini" plain type="primary" @click="goEdit(scope.row)">管理</el-button>
-            <el-button size="mini" plain type="danger" @click="deleteRoles([scope.row.id])">删除</el-button>
+            <el-dropdown @command="handleCommand">
+              <span class="el-dropdown-link">
+                操作菜单<i class="el-icon-arrow-down el-icon--right"></i>
+              </span>
+              <el-dropdown-menu slot="dropdown">
+                <el-dropdown-item :command="{'func': 'doDel', 'id': scope.row.id}">黄金糕</el-dropdown-item>
+                <el-dropdown-item :command="scope.row.id">狮子头</el-dropdown-item>
+              </el-dropdown-menu>
+            </el-dropdown>
           </template>
         </el-table-column>
       </el-table>
@@ -101,7 +108,7 @@ export default {
           { required: true, message: '请输入服务器所在位置', trigger: 'blur' }
         ]
       },
-      selectedRoles: []
+      selectedObj: []
     }
   },
   methods: {
@@ -141,25 +148,25 @@ export default {
         })
       }
     },
-    deleteRoles (ids = []) {
+    doDel (ids = []) {
       this.$confirm('You are sure?', '提示', { type: 'warning' }).then(() => {
         if (ids.length > 0) {
-          this.$http.delete('/api/accounts/roles/', { data: { 'id': ids } }).then(response => {
+          this.$http.delete('/api/assets/servers/', { data: { 'id': ids } }).then(response => {
             this.$custom_message('success', response.res)
-            this.get_roles()
+            this.doGet()
           }, error => {
             this.$custom_message('error', error.res)
           })
         } else {
-          this.$custom_message('warning', '请选择要删除的角色!')
+          this.$custom_message('warning', '请选择要删除的服务器!')
         }
       }).catch(() => {})
     },
     handleSelectionChange (val) {
-      this.selectedRoles = []
+      this.selectedObj = []
       for (let i = 0; i < val.length; i++) {
-        if (this.selectedRoles.indexOf(val[i].id) === -1) {
-          this.selectedRoles.push(val[i].id)
+        if (this.selectedObj.indexOf(val[i].id) === -1) {
+          this.selectedObj.push(val[i].id)
         }
       }
     },
@@ -174,14 +181,17 @@ export default {
       this.dialogFormTitle = '添加服务器'
       this.dialogFormModel = {
         ip: '',
-        port: '',
+        port: 22,
         username: '',
         password: '',
         desc: '',
-        zone: ''
+        zone: 'local'
       }
       this.dialogFormShowObj = 'Add'
       this.dialogFormVisible = true
+    },
+    handleCommand (command) {
+      console.log(typeof command)
     }
   },
   created () {

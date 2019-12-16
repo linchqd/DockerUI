@@ -41,6 +41,7 @@ const routes = [
   {
     path: '/webTerminal',
     name: 'console',
+    meta: { permission: true },
     component: () => import('../views/Console.vue')
   },
   {

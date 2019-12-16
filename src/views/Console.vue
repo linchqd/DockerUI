@@ -10,12 +10,14 @@ import { AttachAddon } from 'xterm-addon-attach'
 export default {
   data () {
     return {
-      data: { 'token': '123456', 'connect_info': { 'host': '192.168.10.20' } },
-      copy: '',
+      data: {
+        token: '',
+        host: '',
+        xterm_width: 0,
+        xterm_height: 0
+      },
       terminal: null,
-      webSocket: null,
-      cols: 0,
-      rows: 0
+      webSocket: null
     }
   },
   methods: {
@@ -30,13 +32,15 @@ export default {
     }
   },
   mounted () {
-    this.cols = Math.floor(window.innerWidth / 9)
-    this.rows = Math.floor(window.innerHeight / 17)
-    this.data.connect_info['xterm_width'] = this.cols
-    this.data.connect_info['xterm_height'] = this.rows
+    this.data.token = this.$store.getters['loginModule/getUserInfo'].token
+    if (this.$route.query.hasOwnProperty('server')) {
+      this.data.host = this.$route.query.server
+    }
+    this.data.xterm_width = Math.floor(window.innerWidth / 9)
+    this.data.xterm_height = Math.floor(window.innerHeight / 18)
     this.terminal = new Terminal({
-      cols: this.cols,
-      rows: this.rows,
+      cols: this.data.xterm_width,
+      rows: this.data.xterm_height,
       cursorBlink: true,
       cursorStyle: 'underline',
       scrollback: 800,

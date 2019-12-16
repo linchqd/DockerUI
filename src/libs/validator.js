@@ -12,7 +12,7 @@ let validator = {
   },
   digits: function (rule, value, callback) {
     const REGEX = /^\d+$/
-    if (value.trim() === '') {
+    if (value === '') {
       return callback(new Error('字段不能为空'))
     }
     if (!REGEX.test(value)) {
