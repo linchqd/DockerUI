@@ -52,37 +52,34 @@ class SSH(object):
                     else:
                         return {'res': False, 'message': '服务器不存在'}
                 except Exception as e:
-                    return {'res': False, 'message': '{}'.format(str(e.args))}
+                    return {'res': False, 'message': str(e)}
             else:
                 return {'res': False, 'message': '认证失败'}
         except Exception as e:
-            print(e.args)
             if self.ws:
                 self.ws.send(str(e.args))
-            return {'res': False, 'message': str(e.args)}
+            return {'res': False, 'message': str(e)}
 
         if self.ws:
             self.ssh_channel = self.ssh.invoke_shell(term='xterm', height=self.xterm_height - 2, width=self.xterm_width - 2)
-            for i in range(2):
-                recv = self.ssh_channel.recv(1024).decode('utf-8', 'ignore')
-                self.ws.send(recv)
+            self.ws.send("*" * 50 + "输入Enter进入shell" + "*" * 50 + "\r\n")
 
         return {'res': True}
 
     def write_public_key(self):
-        if os.path.exists(os.environ['HOME']+'/.ssh/id_rsa.pub'):
-            with open(os.environ['HOME']+'/.ssh/id_rsa.pub') as f:
-                pkey = f.read()
-        else:
-            os.system('ssh-keygen -t rsa -P "" -f ~/.ssh/id_rsa -y')
-            with open(os.environ['HOME']+'/.ssh/id_rsa.pub') as f:
-                pkey = f.read()
-        command = 'mkdir -p -m 700 ~/.ssh/ && grep -o "{}" ~/.ssh/authorized_keys || \
-        (echo "{}" >> ~/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys)'.format(pkey, pkey)
         try:
+            if os.path.exists(os.environ['HOME']+'/.ssh/id_rsa.pub'):
+                with open(os.environ['HOME']+'/.ssh/id_rsa.pub') as f:
+                    pkey = f.read()
+            else:
+                os.system('ssh-keygen -t rsa -P "" -f ~/.ssh/id_rsa > /dev/null 2>&1')
+                with open(os.environ['HOME']+'/.ssh/id_rsa.pub') as f:
+                    pkey = f.read()
+            command = 'mkdir -p -m 700 ~/.ssh/ && grep -o "{}" ~/.ssh/authorized_keys || \
+            (echo "{}" >> ~/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys)'.format(pkey, pkey)
             self.ssh.exec_command(command)
-        except Exception as E:
-            print(E.args)
+        except Exception as e:
+            print(str(e))
 
     def send_to_ssh(self, data):
         try:

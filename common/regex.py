@@ -13,3 +13,10 @@ def regex_ip(value):
             return value
     raise ValueError('ip地址为空或格式不正确')
 
+
+def int_or_list(value, name):
+    if isinstance(value, int):
+        return [value]
+    elif isinstance(value, list):
+        return value
+    raise ValueError('TypeError,{} 必须为int或者list'.format(name))

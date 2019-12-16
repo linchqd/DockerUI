@@ -7,13 +7,14 @@ from flask import request
 from common.ssh import SSH
 from common.encryption import Encryption
 from common.Authentication import permission_required
-from common.regex import regex_ip
+from common.regex import regex_ip, int_or_list
 from resources.assets.Maschema import ServerSchema, ServerModel
 
 
 class Server(Resource):
 
     @staticmethod
+    @permission_required('server_get')
     def get():
         ip = request.args.get('ip')
         if ip:
@@ -23,6 +24,7 @@ class Server(Resource):
             abort(404, message=u"server {} is not exist".format(ip))
         return {"data": ServerSchema(many=True, exclude=('password', 'type')).dump(ServerModel.query.all())}
 
+    @permission_required('server_add')
     def post(self):
         parse = reqparse.RequestParser()
         data = self.add_arguments(parse).parse_args()
@@ -45,14 +47,25 @@ class Server(Resource):
         else:
             return {"message": 'Error: {}'.format(auth.get('message'))}
 
+    @permission_required('server_update')
     def put(self):
         pass
 
+    @permission_required('server_modify')
     def patch(self):
         pass
 
+    @permission_required('server_delete')
     def delete(self):
-        pass
+        parse = reqparse.RequestParser()
+        parse.add_argument('id', type=int_or_list, required=True, location='json')
+        ids = parse.parse_args().get('id')
+        servers = ServerModel.query.filter(ServerModel.id.in_(ids)).all()
+        if servers:
+            for server in servers:
+                server.delete()
+            return {'data': '删除成功'}
+        abort(404, message="server is not exists")
 
     @staticmethod
     def add_arguments(parse):

@@ -27,6 +27,14 @@ INSERT INTO permissions (id, name, `desc`, `ctime`) VALUES (401, 'permission_get
 -- dashboard
 INSERT INTO permissions (id, name, `desc`, `ctime`) VALUES (501, 'dashboard', '查看dashboard', '{}');
 
+-- server
+INSERT INTO permissions (id, name, `desc`, `ctime`) VALUES (601, 'server_add', '添加服务器', '{}');
+INSERT INTO permissions (id, name, `desc`, `ctime`) VALUES (602, 'server_delete', '删除服务器', '{}');
+INSERT INTO permissions (id, name, `desc`, `ctime`) VALUES (603, 'server_update', '更新服务器', '{}');
+INSERT INTO permissions (id, name, `desc`, `ctime`) VALUES (604, 'server_modify', '修改服务器', '{}');
+INSERT INTO permissions (id, name, `desc`, `ctime`) VALUES (605, 'server_get', '查看服务器列表', '{}');
+INSERT INTO permissions (id, name, `desc`, `ctime`) VALUES (606, 'server_webssh', '服务器webssh', '{}');
+
 -- default superuser / role
 INSERT INTO users (id, `name`, `cname`, `email`, `phone_number`, `pwd_hash`, `is_super`, `status`, `ctime`) values (1, 'admin', 'admin', 'admin@admin.com', '13888888888', 'pbkdf2:sha256:150000$ymlosmY7$184ddd6854ef11252a8a0f5b78511773548bb5e9ccf7460360d936d4b72e8bf1', True, True, '{}');
 INSERT INTO roles (id, name, `desc`, `ctime`) VALUES (1, '账户管理员', '账户管理者,可以对用户/用户组进行增删改查操作', '{}');
