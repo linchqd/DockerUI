@@ -23,6 +23,7 @@
                 操作菜单<i class="el-icon-arrow-down el-icon--right"></i>
               </span>
               <el-dropdown-menu slot="dropdown">
+                <el-dropdown-item :command="{'opt': 'detail', 'ip': scope.row.ip}" style="color:#409EFF;">详细</el-dropdown-item>
                 <el-dropdown-item :command="{'opt': 'update', 'ip': scope.row.ip}" style="color:#409EFF;">更新</el-dropdown-item>
                 <el-dropdown-item :command="{'opt': 'shell', 'ip': scope.row.ip}" style="color:#409EFF;">shell</el-dropdown-item>
                 <el-dropdown-item :command="{'opt': 'del', 'id': scope.row.id}" style="color:#F56C6C;">删除</el-dropdown-item>
@@ -221,6 +222,12 @@ export default {
             this.dialogFormModel = this.$deepCopy(value)
             this.dialogFormShowObj = 'Update'
             this.dialogFormVisible = true
+          }
+        })
+      } else if (command.opt === 'detail') {
+        this.objs.some((value) => {
+          if (value.ip === command.ip) {
+            this.$custom_message('success', JSON.stringify(value))
           }
         })
       }
