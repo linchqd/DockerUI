@@ -12,7 +12,6 @@ from resources.assets.Maschema import ServerSchema, ServerModel
 
 
 class Server(Resource):
-
     @staticmethod
     @permission_required('server_get')
     def get():
@@ -31,34 +30,63 @@ class Server(Resource):
         server = ServerModel.query.filter_by(ip=data['ip']).first()
         if server:
             return {"message": 'ip: {}已存在'.format(data['ip'])}
-        ssh = SSH(
-            host=data.get('ip'),
-            username=data.get('username'),
-            port=data.get('port'),
-            password=data.get('password'),
-            auth_type=1
-        )
-        auth = ssh.connect()
-        if auth.get('res'):
-            data['password'] = Encryption().encrypt(data.get('password'))
-            server = ServerModel(**data).save()
-            ssh.close()
-            return {"data": "添加成功, 服务器id: {}".format(server.id)}
-        else:
-            return {"message": 'Error: {}'.format(auth.get('message'))}
+
+        res = self.auth_ssh(data['ip'], data['port'], data['username'], data['password'])
+        if res:
+            return res
+        data['password'] = Encryption().encrypt(data.get('password'))
+        server = ServerModel(**data).save()
+        return {"data": "添加成功, 服务器id: {}".format(server.id)}
 
     @permission_required('server_update')
     def put(self):
         parse = reqparse.RequestParser()
         data = self.add_arguments(parse).parse_args()
         server = ServerModel.query.filter_by(ip=data.get('ip')).first()
-        if server:
-            if data.get('password'):
-                pass
+        if not server:
+            return {"message": 'Error: 服务器{}is not exists'.format(data.get('ip'))}
+
+        if data.get('password', None):
+            res = self.auth_ssh(data['ip'], data['port'], data['username'], data['password'])
+            if res:
+                return res
+            data['password'] = Encryption().encrypt(data.get('password'))
+            server.update(**data)
+        else:
+            res = self.auth_ssh(data['ip'], data['port'], data['username'])
+            if res:
+                return res
+            data.pop('password')
+            server.update(**data)
+        return {"data": "更新成功"}
 
     @permission_required('server_modify')
     def patch(self):
-        pass
+        parse = reqparse.RequestParser()
+        data = self.add_arguments(parse=parse, required=False).parse_args()
+        server = ServerModel.query.filter_by(ip=data['ip']).first()
+        if not server:
+            return {"message": 'Error: 服务器:{} is not exists'.format(data['ip'])}
+        for k, v in data.items():
+            if k not in ['username', 'port', 'password']:
+                if hasattr(server, k) and v is not None and getattr(server, k) != v:
+                    setattr(server, k, v)
+            else:
+                if k in ['username', 'port'] and v is not None:
+                    if k == 'username':
+                        res = self.auth_ssh(host=server.ip, port=server.port, username=v)
+                    else:
+                        res = self.auth_ssh(host=server.ip, port=v, username=server.username)
+                    if res:
+                        return res
+                    setattr(server, k, v)
+                if k == 'password' and v is not None:
+                    res = self.auth_ssh(host=server.ip, port=server.port, username=server.username, password=v)
+                    if res:
+                        return res
+                    setattr(server, k, Encryption().encrypt(v))
+        server.save()
+        return {"data": "修改成功"}
 
     @permission_required('server_delete')
     def delete(self):
@@ -72,15 +100,35 @@ class Server(Resource):
             return {'data': '删除成功'}
         abort(404, message="server is not exists")
 
-    def add_or_update(self):
-        pass
+    @staticmethod
+    def auth_ssh(host, port, username, password=None):
+        if password:
+            ssh = SSH(
+                host=host,
+                username=username,
+                port=port,
+                password=password,
+                auth_type=1
+            )
+        else:
+            ssh = SSH(
+                host=host,
+                username=username,
+                port=port,
+            )
+        auth = ssh.connect()
+        if not auth.get('res'):
+            return {'message': 'Error: {}'.format(auth.get('message'))}
+        ssh.close()
 
     @staticmethod
-    def add_arguments(parse):
+    def add_arguments(parse, required=True):
         parse.add_argument('ip', type=regex_ip, required=True, help=u'ip: 缺少该参数或格式不正确', location='json')
-        parse.add_argument('port', type=int, required=True, help=u'port: 缺少该参数或格式不正确', location='json')
-        parse.add_argument('username', type=str, required=True, help=u'username: 缺少该参数或格式不正确', location='json')
+        parse.add_argument('port', type=int, required=required, help=u'port: 缺少该参数或格式不正确', location='json')
+        parse.add_argument('username', type=str, required=required, help=u'username: 缺少该参数或格式不正确', location='json')
         parse.add_argument('password', type=str, help=u'password: 缺少该参数或格式不正确', location='json')
         parse.add_argument('desc', type=str, help=u'desc: 格式不正确', location='json')
-        parse.add_argument('zone', type=str, required=True, help=u'zone: 缺少该参数或格式不正确', location='json')
+        parse.add_argument('zone', type=str, required=required, help=u'zone: 缺少该参数或格式不正确', location='json')
+        if not required:
+            parse.add_argument('type', type=int, help=u'type: 缺少该参数或格式不正确', location='json')
         return parse
