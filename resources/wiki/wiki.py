@@ -111,7 +111,7 @@ class DocumentKind(Resource):
         if kinds:
             for kind in kinds:
                 if len(kind.docs.all()) > 0:
-                    return {'data': '删除失败,分类"{}"下存在文档,请先删除文档后再删除分类'.format(kind.name)}
+                    return {'message': '删除失败,分类"{}"下存在文档,请先删除文档后再删除分类'.format(kind.name)}
                 kind.delete()
             return {'data': '删除成功'}
         return {"message": "分类不存在"}, 404
