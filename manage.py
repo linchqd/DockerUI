@@ -38,6 +38,8 @@ def input_password(pwd):
 def init_db():
     from app import db
     from resources.accounts import models
+    from resources.assets import models
+    from resources.wiki import models
     user_input = input('是否要初始化数据库，该操作会清空所有数据[y|n]？')
     if user_input.strip() == 'y':
         db.drop_all()

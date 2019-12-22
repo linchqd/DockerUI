@@ -3,7 +3,7 @@
 
 
 from app import app, api, sockets
-from resources import accounts, assets
+from resources import accounts, assets, wiki
 from common.prepost import init_app
 from resources.assets.ws import ws_blueprint
 
@@ -11,6 +11,7 @@ from resources.assets.ws import ws_blueprint
 init_app(app)
 accounts.add_resource(api)
 assets.add_resource(api)
+wiki.add_resource(api)
 sockets.register_blueprint(ws_blueprint, url_prefix='/ws/')
 
 if __name__ == '__main__':
