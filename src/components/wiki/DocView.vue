@@ -19,7 +19,9 @@
       </div>
       <div class="Box-body">
         <mavon-editor
+          class="md"
           :value="docObj.context"
+          :codeStyle="props.code_style"
           :subfield = "props.subfield"
           :defaultOpen = "props.defaultOpen"
           :toolbarsFlag = "props.toolbarsFlag"
@@ -70,7 +72,8 @@ export default {
         editable: false,
         toolbarsFlag: false,
         scrollStyle: true,
-        boxShadow: false
+        boxShadow: false,
+        code_style: 'monokai-sublime'
       }
     }
   },
