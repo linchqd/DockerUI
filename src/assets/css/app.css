@@ -366,6 +366,41 @@ a {
   justify-content: flex-end;
   padding-bottom: 40px;
 }
+.Box {
+  background-color: #fff;
+  border: 1px solid #d1d5da;
+  border-radius: 3px;
+  line-height: 1.25;
+}
+.Box-padding {
+  padding-bottom: 40px;
+}
+.Box .Box-header {
+  background-color: #f6f8fa;
+  border-bottom: 1px solid #d1d5da;
+  border-top-left-radius: 3px;
+  border-top-right-radius: 3px;
+}
+.Box .Box-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  display: flex !important;
+  align-items: center!important;
+  /*justify-content: center;*/
+}
+.Box .Box-title span {
+  margin-right: 40px;
+}
+.Box .Box-body {
+  padding: 32px;
+}
+.Box-body, .Box-header {
+  padding: 8px 16px;
+}
+.v-note-wrapper {
+  border: none!important;
+}
 .app-content .content-tabs {
     margin: 30px 0 0 0;
 }

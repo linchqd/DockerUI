@@ -30,7 +30,13 @@ const routes = [
       { path: 'accounts/permissions', name: 'permissions', component: () => import('../components/accounts/permissions/Permissions.vue'), meta: { permission: true } },
       // assets
       { path: 'assets/servers', redirect: { 'name': 'servers_serverList' }, meta: { permission: true } },
-      { path: 'assets/servers/serverList', name: 'servers_serverList', component: () => import('../components/assets/servers/ServerList.vue'), meta: { permission: true } }
+      { path: 'assets/servers/serverList', name: 'servers_serverList', component: () => import('../components/assets/servers/ServerList.vue'), meta: { permission: true } },
+      // wiki
+      { path: 'wiki/docs/', name: 'docs', component: () => import('../components/wiki/Doc.vue'), meta: { permission: true } },
+      { path: 'wiki/docs/docAdd', name: 'docs_Add', component: () => import('../components/wiki/DocAdd.vue'), meta: { permission: true } },
+      { path: 'wiki/docs/docEdit/:id', name: 'docs_Edit', component: () => import('../components/wiki/DocAdd.vue'), meta: { permission: true } },
+      { path: 'wiki/docs/docView/:id', name: 'docs_View', component: () => import('../components/wiki/DocView.vue'), meta: { permission: true } },
+      { path: 'wiki/kinds/', name: 'kinds', component: () => import('../components/wiki/Kind.vue'), meta: { permission: true } }
     ]
   },
   {
