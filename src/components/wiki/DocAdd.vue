@@ -21,7 +21,7 @@
           </el-select>
         </el-form-item>
         <el-button type="primary" size="small" :loading="FormLoading" plain @click.native="FormSubmit">提 交</el-button>
-        <mavon-editor v-model="FormModel.context" class="md" :codeStyle="code_style" style="min-height: 600px"/>
+        <mavon-editor v-model="FormModel.context" class="md" :tabSize="tabSize" :codeStyle="code_style" style="min-height: 600px"/>
       </el-form>
     </div>
   </div>
@@ -51,7 +51,8 @@ export default {
       },
       kindObj: '',
       docObj: '',
-      code_style: 'monokai-sublime'
+      code_style: 'monokai-sublime',
+      tabSize: 2
     }
   },
   components: {
