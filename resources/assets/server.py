@@ -4,7 +4,7 @@
 
 from flask_restful import Resource, reqparse, abort
 from flask import request
-from common.ssh import SSH
+from common.terminal import Terminal
 from common.encryption import Encryption
 from common.Authentication import permission_required
 from common.regex import regex_ip, int_or_list
@@ -31,9 +31,15 @@ class Server(Resource):
         if server:
             return {"message": 'ip: {}已存在'.format(data['ip'])}
 
-        res = self.auth_ssh(data['ip'], data['port'], data['username'], data['password'])
-        if res:
-            return res
+        res = Terminal(
+            host=data['ip'],
+            port=data['port'],
+            username=data['username'],
+            password=data['password']
+        ).assert_connect()
+
+        if not res.get('res'):
+            return {'message': 'Error: {}'.format(res.get('msg'))}
         data['password'] = Encryption().encrypt(data.get('password'))
         server = ServerModel(**data).save()
         return {"data": "添加成功, 服务器id: {}".format(server.id)}
@@ -47,15 +53,24 @@ class Server(Resource):
             return {"message": 'Error: 服务器{}is not exists'.format(data.get('ip'))}
 
         if data.get('password', None):
-            res = self.auth_ssh(data['ip'], data['port'], data['username'], data['password'])
-            if res:
-                return res
+            res = Terminal(
+                host=data['ip'],
+                port=data['port'],
+                username=data['username'],
+                password=data['password']
+            ).assert_connect()
+            if not res.get('res'):
+                return {'message': 'Error: {}'.format(res.get('msg'))}
             data['password'] = Encryption().encrypt(data.get('password'))
             server.update(**data)
         else:
-            res = self.auth_ssh(data['ip'], data['port'], data['username'])
-            if res:
-                return res
+            res = Terminal(
+                host=data['ip'],
+                port=data['port'],
+                username=data['username']
+            ).assert_connect()
+            if not res.get('res'):
+                return {'message': 'Error: {}'.format(res.get('msg'))}
             data.pop('password')
             server.update(**data)
         return {"data": "更新成功"}
@@ -74,16 +89,21 @@ class Server(Resource):
             else:
                 if k in ['username', 'port'] and v is not None:
                     if k == 'username':
-                        res = self.auth_ssh(host=server.ip, port=server.port, username=v)
+                        res = Terminal(host=server.ip, port=server.port, username=v).assert_connect()
                     else:
-                        res = self.auth_ssh(host=server.ip, port=v, username=server.username)
-                    if res:
-                        return res
+                        res = Terminal(host=server.ip, port=v, username=server.username).assert_connect()
+                    if not res.get('res'):
+                        return {'message': 'Error: {}'.format(res.get('msg'))}
                     setattr(server, k, v)
                 if k == 'password' and v is not None:
-                    res = self.auth_ssh(host=server.ip, port=server.port, username=server.username, password=v)
-                    if res:
-                        return res
+                    res = Terminal(
+                        host=server.ip,
+                        port=server.port,
+                        username=server.username,
+                        password=v
+                    ).assert_connect()
+                    if not res.get('res'):
+                        return {'message': 'Error: {}'.format(res.get('msg'))}
                     setattr(server, k, Encryption().encrypt(v))
         server.save()
         return {"data": "修改成功"}
@@ -99,27 +119,6 @@ class Server(Resource):
                 server.delete()
             return {'data': '删除成功'}
         abort(404, message="server is not exists")
-
-    @staticmethod
-    def auth_ssh(host, port, username, password=None):
-        if password:
-            ssh = SSH(
-                host=host,
-                username=username,
-                port=port,
-                password=password,
-                auth_type=1
-            )
-        else:
-            ssh = SSH(
-                host=host,
-                username=username,
-                port=port,
-            )
-        auth = ssh.connect()
-        if not auth.get('res'):
-            return {'message': 'Error: {}'.format(auth.get('message'))}
-        ssh.close()
 
     @staticmethod
     def add_arguments(parse, required=True):

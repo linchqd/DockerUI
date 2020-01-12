@@ -3,8 +3,9 @@
 
 
 from flask import Blueprint
-import json, time
-from common.ssh import SSH
+import json
+import time
+from common.terminal import Terminal
 from resources.accounts.models import User
 from resources.assets.models import ServerModel
 
@@ -21,7 +22,7 @@ def terminal(websocket):
             and (user.is_super or 'server_webssh' in user.get_permissions()):
         server = ServerModel.query.filter_by(ip=data.get('host', None)).first()
         if server:
-            ssh = SSH(
+            ssh = Terminal(
                 host=server.ip,
                 username=server.username,
                 port=server.port,

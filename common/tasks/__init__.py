@@ -6,24 +6,22 @@ from celery import Celery
 from app import app
 
 
-def make_celery(app):
-    celery = Celery(
-        app.import_name,
+def make_celery(flask_app):
+    celery_app = Celery(
+        flask_app.import_name,
         backend=app.config['CELERY_RESULT_BACKEND'],
-        broker=app.config['CELERY_BROKER_URL']
+        broker=flask_app.config['CELERY_BROKER_URL'],
+        include=['common.tasks.task']
     )
-    celery.conf.update(app.config)
+    celery_app.conf.update(flask_app.config)
 
-    class ContextTask(celery.Task):
+    class ContextTask(celery_app.Task):
         def __call__(self, *args, **kwargs):
-            with app.app_context():
+            with flask_app.app_context():
                 return self.run(*args, **kwargs)
 
-    celery.Task = ContextTask
-    return celery
+    celery_app.Task = ContextTask
+    return celery_app
+
 
 celery = make_celery(app)
-
-@celery.task()
-def add_together(a, b):
-    return a + b
