@@ -8,7 +8,6 @@ from ansible.module_utils.common.collections import ImmutableDict
 from ansible.parsing.dataloader import DataLoader
 from ansible.vars.manager import VariableManager
 from ansible.inventory.manager import InventoryManager
-from ansible.inventory. import Inventory
 from ansible.inventory.group import Group
 from ansible.inventory.host import Host
 from ansible.playbook.play import Play
@@ -16,7 +15,7 @@ from ansible.executor.task_queue_manager import TaskQueueManager
 from ansible.plugins.callback import CallbackBase
 from ansible import context
 import ansible.constants as C
-
+import os
 
 
 class ResultCallback(CallbackBase):
@@ -38,73 +37,95 @@ class ResultCallback(CallbackBase):
         self.host_failed[result._host.get_name()] = result
 
 
-class AddInventory(Inventory):
+class AnsHost(Host):
+    """
+    :param host_info:
+    {
+        "ip": '',
+        "port": int,
+        "username": "",
+        "password": "",
+        "private_key": "",
+        "groups": [{"name": "test", "vars": {"var": "test"}}],
+        "vars": {"var": "test"}
+    }
+    """
 
-    def __init__(self, resource, loader, variable_manager):
+    def __init__(self, host_info):
+        self.host_info = host_info
+        self.name = host_info.get('ip')
+        self.port = host_info.get('port') or 22
+        super().__init__(self.name, self.port)
+        self.set_ssh_info()
+
+    def set_ssh_info(self):
+        self.set_variable('ansible_ssh_host', self.host_info.get('ip'))
+        self.set_variable('ansible_ssh_port', self.host_info.get('port', 22))
+        self.set_variable('ansible_ssh_user', self.host_info.get('username', 'root'))
+
+        if self.host_info.get('password'):
+            self.set_variable('ansible_ssh_pass', self.host_info.get('password'))
+
+        if self.host_info.get('private_key'):
+            self.set_variable('ansible_ssh_private_key_file', self.host_info.get('private_key'))
+
+        self.set_extra_variable()
+
+    def set_extra_variable(self):
+        for k, v in self.host_info.get('vars', {}).items():
+            self.set_variable(k, v)
+
+    def __repr__(self):
+        return self.name
+
+
+class AnsInventory(InventoryManager):
+    """
+        :param host_list:
+        [{
+            "ip": '',
+            "port": int,
+            "username": "",
+            "password": "",
+            "private_key": "",
+            "groups": [{"name": "test", "vars": {"var": "test"}}],
+            "vars": {"var": "test"},
+        }]
         """
-        resource的数据格式是一个列表字典，比如
-            {
-                "group1": {
-                    "hosts": [{"hostname": "10.0.0.0", "port": "22", "username": "test", "password": "pass"}, ...],
-                    "vars": {"var1": value1, "var2": value2, ...}
-                }
-            }
 
-        如果你只传入1个列表，这默认该列表内的所有主机属于my_group组,比如
-            [{"hostname": "10.0.0.0", "port": "22", "username": "test", "password": "pass"}, ...]
-        """
-        self.resource = resource
-        self.inventory = Inventory(loader=loader, variable_manager=variable_manager, host_list=[])
-        self.gen_inventory()
+    def __init__(self, host_list=None):
+        self.loader = DataLoader()
+        if host_list is None:
+            self.host_list = []
+        elif isinstance(host_list, list):
+            self.host_list = host_list
+        else:
+            raise TypeError("host list must be a list")
+        super().__init__(self.loader)
 
-    def my_add_group(self, hosts, groupname, groupvars=None):
-        """
-        add hosts to a group
-        """
-        my_group = Group(name=groupname)
+    def parse_sources(self, cache=False):
+        all_group = self._inventory.groups.get('all')
 
-        # if group variables exists, add them to group
-        if groupvars:
-            for key, value in groupvars.iteritems():
-                my_group.set_variable(key, value)
+        for host_info in self.host_list:
+            host = AnsHost(host_info=host_info)
+            self._inventory.hosts[host.name] = host
 
-                # add hosts to group
-        for host in hosts:
-            # set connection variables
-            hostname = host.get("hostname")
-            hostip = host.get('ip', hostname)
-            hostport = host.get("port")
-            username = host.get("username")
-            password = host.get("password")
-            ssh_key = host.get("ssh_key")
-            my_host = Host(name=hostname, port=hostport)
-            my_host.set_variable('ansible_ssh_host', hostip)
-            my_host.set_variable('ansible_ssh_port', hostport)
-            my_host.set_variable('ansible_ssh_user', username)
-            my_host.set_variable('ansible_ssh_pass', password)
-            my_host.set_variable('ansible_ssh_private_key_file', ssh_key)
-
-            # set other variables
-            for key, value in host.iteritems():
-                if key not in ["hostname", "port", "username", "password"]:
-                    my_host.set_variable(key, value)
-                    # add to group
-            my_group.add_host(my_host)
-
-        self.inventory.add_group(my_group)
-
-    def gen_inventory(self):
-        """
-        add hosts to inventory.
-        """
-        if isinstance(self.resource, list):
-            self.my_add_group(self.resource, 'default_group')
-        elif isinstance(self.resource, dict):
-            for groupname, hosts_and_vars in self.resource.iteritems():
-                self.my_add_group(hosts_and_vars.get("hosts"), groupname, hosts_and_vars.get("vars"))
+            groups = host_info.get('groups')
+            if groups and isinstance(groups, list):
+                for g in groups:
+                    assert isinstance(g, dict)
+                    assert isinstance(g.get('name', None), str)
+                    group = self._inventory.groups.get(g['name'], None)
+                    if group is None:
+                        self.add_group(g.get('name'))
+                        group = self._inventory.groups.get(g['name'])
+                        #self._inventory.add_child(all_group, group)
+                    group.add_host(host)
+            else:
+                all_group.add_host(host)
 
 
-class MyAnsiable2():
+class MyAnsiable2(object):
     def __init__(self,
                  connection='local',  # 连接方式 local 本地方式，smart ssh方式
                  remote_user=None,  # 远程用户
@@ -147,13 +168,10 @@ class MyAnsiable2():
 
         # 三元表达式，假如没有传递 inventory, 就使用 "localhost,"
         # 确定 inventory 文件
-        self.inventory = inventory if inventory else "localhost,"
+        self.inventory = inventory
 
         # 实例化数据解析器
         self.loader = DataLoader()
-
-        # 实例化 资产配置对象
-        self.inv_obj = InventoryManager(loader=self.loader, sources=self.inventory)
 
         # 设置密码，可以为空字典，但必须有此参数
         self.passwords = {}
@@ -162,7 +180,7 @@ class MyAnsiable2():
         self.results_callback = ResultCallback()
 
         # 变量管理器
-        self.variable_manager = VariableManager(self.loader, self.inv_obj)
+        self.variable_manager = VariableManager(self.loader, self.inventory)
 
     def run(self, hosts='localhost', gether_facts="no", module="ping", args=''):
         play_source = dict(
@@ -180,7 +198,7 @@ class MyAnsiable2():
         tqm = None
         try:
             tqm = TaskQueueManager(
-                inventory=self.inv_obj,
+                inventory=self.inventory,
                 variable_manager=self.variable_manager,
                 loader=self.loader,
                 passwords=self.passwords,
@@ -196,7 +214,7 @@ class MyAnsiable2():
         from ansible.executor.playbook_executor import PlaybookExecutor
 
         playbook = PlaybookExecutor(playbooks=playbooks,  # 注意这里是一个列表
-                                    inventory=self.inv_obj,
+                                    inventory=self.inventory,
                                     variable_manager=self.variable_manager,
                                     loader=self.loader,
                                     passwords=self.passwords)
@@ -223,22 +241,24 @@ class MyAnsiable2():
 
 if __name__ == '__main__':
 
-    ansible2 = MyAnsiable2(inventory='/tmp/hosts', connection='smart')
+    # ansible2 = MyAnsiable2(inventory='/tmp/hosts', connection='smart')
+    #
+    # ansible2.playbook(playbooks=['/tmp/exec-command.yml'])
+    #
+    # ansible2.get_result()
 
-    ansible2.playbook(playbooks=['/tmp/exec-command.yml'])
-
+    res = [
+        {
+            "ip": '192.168.10.20',
+            "port": 22,
+            "username": "root",
+            "groups": [{"name": "test"}],
+            "vars": {"ansible_ssh_private_key_file": "~/.pkey.pub"}
+        }
+    ]
+    inv = AnsInventory(host_list=res)
+    print(inv.list_groups())
+    ansible2 = MyAnsiable2(inventory=inv, connection='smart')
+    ansible2.playbook(playbooks=['/Users/linchqd/Desktop/dockerui/api/common/tasks/ansible_play/add-sshkey.yml'])
     ansible2.get_result()
 
-{
-  "test":{
-    "hosts": {
-      "10.0.2.15": {
-        "command": "ifconfig",
-        "ansible_ssh_user": "root"
-      }
-    },
-    "vars": {
-      "ansible_ssh_private_key_file": "~/.pkey"
-    }
-  }
-}
