@@ -1,4 +1,4 @@
 - name: add ssh pub key
-  hosts: test
+  hosts: all
   roles:
     - add_sshkey

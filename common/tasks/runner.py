@@ -119,7 +119,7 @@ class AnsInventory(InventoryManager):
                     if group is None:
                         self.add_group(g.get('name'))
                         group = self._inventory.groups.get(g['name'])
-                        #self._inventory.add_child(all_group, group)
+                        all_group.add_child_group(group)
                     group.add_host(host)
             else:
                 all_group.add_host(host)
@@ -249,16 +249,14 @@ if __name__ == '__main__':
 
     res = [
         {
-            "ip": '192.168.10.20',
+            "ip": '10.0.2.15',
             "port": 22,
             "username": "root",
-            "groups": [{"name": "test"}],
-            "vars": {"ansible_ssh_private_key_file": "~/.pkey.pub"}
+            "vars": {"ansible_ssh_private_key_file": "~/.pkey"}
         }
     ]
     inv = AnsInventory(host_list=res)
-    print(inv.list_groups())
     ansible2 = MyAnsiable2(inventory=inv, connection='smart')
-    ansible2.playbook(playbooks=['/Users/linchqd/Desktop/dockerui/api/common/tasks/ansible_play/add-sshkey.yml'])
+    ansible2.playbook(playbooks=['/home/test/pyweb/api/common/tasks/ansible_play/add-sshkey.yml'])
     ansible2.get_result()
 

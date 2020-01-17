@@ -63,6 +63,7 @@ class Terminal(object):
                 self.get_pubkey(), self.get_pubkey())
             self.ssh.exec_command(command)
             self.ssh.close()
+            self.get_pubkey()
             return {"res": True}
         except Exception as e:
             return {"res": False, "msg": str(e)}
@@ -157,8 +158,11 @@ class Terminal(object):
                 subprocess.run(change_permission, shell=True)
                 with open(os.environ['HOME'] + '/.pkey') as f:
                     pkey = f.read()
-                with open(os.environ['HOME']+'/.pkey.pub') as f:
+                with open(os.environ['HOME']+'/.pkey.pub', 'r+') as f:
                     pub_key = ' '.join(f.read().split()[0:2])
+                    f.seek(0)
+                    f.truncate()
+                    f.write(pub_key)
                 ssh_key = SshKeyModel()
                 ssh_key.name = 'ssh_key'
                 ssh_key.pkey = pkey

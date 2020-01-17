@@ -1,5 +1,5 @@
 - name: add ssh pub key
   authorized_key:
-    user: "{{ lookup('env', 'USER') }}"
+    user: "{{ ansible_ssh_user }}"
     state: present
-    key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
+    key: "{{ lookup('file', lookup('env','HOME') + '/.pkey.pub') }}"
