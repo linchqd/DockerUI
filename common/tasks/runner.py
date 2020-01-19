@@ -125,28 +125,31 @@ class AnsInventory(InventoryManager):
                 all_group.add_host(host)
 
 
-class MyAnsiable2(object):
+class BaseRunner(object):
     def __init__(self,
-                 connection='local',  # 连接方式 local 本地方式，smart ssh方式
-                 remote_user=None,  # 远程用户
-                 ack_pass=None,  # 提示输入密码
-                 sudo=None, sudo_user=None, ask_sudo_pass=None,
-                 module_path=None,  # 模块路径，可以指定一个自定义模块的路径
-                 become=None,  # 是否提权
-                 become_method=None,  # 提权方式 默认 sudo 可以是 su
-                 become_user=None,  # 提权后，要成为的用户，并非登录用户
-                 check=False, diff=False,
-                 listhosts=None, listtasks=None, listtags=None,
+                 connection='smart',
+                 remote_user=None,
+                 ack_pass=None,
+                 sudo=None,
+                 sudo_user=None,
+                 ask_sudo_pass=None,
+                 module_path=None,
+                 become=None,
+                 become_method=None,
+                 become_user=None,
+                 check=False,
+                 diff=False,
+                 forks=10,
+                 timeout=60,
+                 private_key_file=None,
                  verbosity=3,
+                 listhosts=None,
+                 listtasks=None,
+                 listtags=None,
                  syntax=None,
-                 start_at_task=None,
-                 inventory=None):
+                 start_at_task=None
+                 ):
 
-        # 函数文档注释
-        """
-        初始化函数，定义的默认的选项值，
-        在初始化的时候可以传参，以便覆盖默认选项的值
-        """
         context.CLIARGS = ImmutableDict(
             connection=connection,
             remote_user=remote_user,
@@ -158,6 +161,11 @@ class MyAnsiable2(object):
             become=become,
             become_method=become_method,
             become_user=become_user,
+            check=check,
+            diff=diff,
+            forks=forks,
+            timeout=timeout,
+            private_key_file=private_key_file,
             verbosity=verbosity,
             listhosts=listhosts,
             listtasks=listtasks,
@@ -165,10 +173,6 @@ class MyAnsiable2(object):
             syntax=syntax,
             start_at_task=start_at_task,
         )
-
-        # 三元表达式，假如没有传递 inventory, 就使用 "localhost,"
-        # 确定 inventory 文件
-        self.inventory = inventory
 
         # 实例化数据解析器
         self.loader = DataLoader()
