@@ -3,29 +3,33 @@
 
 
 import json
+import os
 import shutil
 from ansible.module_utils.common.collections import ImmutableDict
 from ansible.parsing.dataloader import DataLoader
 from ansible.vars.manager import VariableManager
 from ansible.inventory.manager import InventoryManager
-from ansible.inventory.group import Group
 from ansible.inventory.host import Host
 from ansible.playbook.play import Play
 from ansible.executor.task_queue_manager import TaskQueueManager
 from ansible.plugins.callback import CallbackBase
+from ansible.plugins.callback.default import CallbackModule
+from ansible.executor.playbook_executor import PlaybookExecutor
 from ansible import context
 import ansible.constants as C
-import os
+from ansible.errors import AnsibleError
 
 
 class ResultCallback(CallbackBase):
+    """
+       重写callbackBase类的部分方法
+       """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.host_ok = {}
         self.host_unreachable = {}
         self.host_failed = {}
-        self.task_ok = {}
 
     def v2_runner_on_unreachable(self, result):
         self.host_unreachable[result._host.get_name()] = result
@@ -35,6 +39,9 @@ class ResultCallback(CallbackBase):
 
     def v2_runner_on_failed(self, result, **kwargs):
         self.host_failed[result._host.get_name()] = result
+
+    def v2_playbook_on_stats(self, stats):
+        super().__init__(stats)
 
 
 class AnsHost(Host):
@@ -174,9 +181,17 @@ class BaseRunner(object):
             start_at_task=start_at_task,
         )
 
+
+class AdHocRunner(BaseRunner):
+
+    def __init__(self, inventory, *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+
         # 实例化数据解析器
         self.loader = DataLoader()
 
+        self.inventory = inventory
         # 设置密码，可以为空字典，但必须有此参数
         self.passwords = {}
 
@@ -186,16 +201,46 @@ class BaseRunner(object):
         # 变量管理器
         self.variable_manager = VariableManager(self.loader, self.inventory)
 
-    def run(self, hosts='localhost', gether_facts="no", module="ping", args=''):
+    def check_hosts_pattern(self, pattern):
+        if not pattern:
+            raise AnsibleError("Pattern '{}' is not valid!".format(pattern))
+        if not self.inventory.list_hosts("all"):
+            raise AnsibleError("Inventory is empty.")
+        if not self.inventory.list_hosts(pattern):
+            raise AnsibleError("pattern: %s  dose not match any hosts." % pattern)
+
+    @staticmethod
+    def check_module_args(module_name, module_args=''):
+        if module_name in C.MODULE_REQUIRE_ARGS and not module_args:
+            err = "No argument passed to '%s' module." % module_name
+            raise AnsibleError(err)
+
+    def add_tasks(self, _tasks):
+        task_list = []
+        for task in _tasks:
+            self.check_module_args(task['action']['module'], task['action'].get('args'))
+            task_list.append(task)
+        return task_list
+
+    def run(self, tasks, pattern, play_name='Ansible AdHoc Runner', gather_facts='no'):
+        """
+        :param tasks: [{'action': {'module': 'command', 'args': 'ls'}, ...}, ]
+        :param pattern: all, *, or others
+        :param play_name: The play name
+        :param gather_facts, default no
+        :return:
+        """
+
+        self.check_hosts_pattern(pattern)
+
+        task_list = self.add_tasks(tasks)
+
         play_source = dict(
-            name="Ad-hoc",
-            hosts=hosts,
-            gather_facts=gether_facts,
-            tasks=[
-                # 这里每个 task 就是这个列表中的一个元素，格式是嵌套的字典
-                # 也可以作为参数传递过来，这里就简单化了。
-                {"action": {"module": module, "args": args}},
-            ])
+            name=play_name,
+            hosts=pattern,
+            gather_facts=gather_facts,
+            tasks=task_list
+        )
 
         play = Play().load(play_source, variable_manager=self.variable_manager, loader=self.loader)
 
@@ -206,9 +251,11 @@ class BaseRunner(object):
                 variable_manager=self.variable_manager,
                 loader=self.loader,
                 passwords=self.passwords,
-                stdout_callback=self.results_callback)
-
-            result = tqm.run(play)
+                stdout_callback=self.results_callback
+            )
+            tqm.run(play)
+            for host, result in self.results_callback.host_failed.items():
+                print("主机{}, 执行结果{}".format(host, result._result))
         finally:
             if tqm is not None:
                 tqm.cleanup()
@@ -243,24 +290,77 @@ class BaseRunner(object):
         print(json.dumps(result_raw, indent=4))
 
 
+class PlayBookRunner(BaseRunner):
+
+    def __init__(self, playbook, inventory, *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+        self.playbook = playbook
+        if not self.playbook or not os.path.exists(self.playbook):
+            raise AnsibleError("playbook '{}' is Not Found".format(self.playbook))
+        self.inventory = inventory
+        if not self.inventory.list_hosts('all'):
+            raise AnsibleError("Inventory is Empty")
+        self.loader = DataLoader()
+        self.results_callback = ResultCallback()
+        self.playbook = playbook
+        self.variable_manager = VariableManager(self.loader, self.inventory)
+        self.passwords = {}
+
+    def run(self):
+
+        playbook_executor = PlaybookExecutor(
+            playbooks=[self.playbook],
+            inventory=self.inventory,
+            variable_manager=self.variable_manager,
+            loader=self.loader,
+            passwords=self.passwords
+        )
+
+        playbook_executor._tqm._stdout_callback = self.results_callback
+
+        playbook_executor.run()
+        playbook_executor._tqm.cleanup()
+        self.get_result()
+
+    def get_result(self):
+        pass
+        # result_raw = {'success': {}, 'failed': {}, 'unreachable': {}}
+        #
+        # # print(self.results_callback.host_ok)
+        # for host, result in self.results_callback.host_ok.items():
+        #     result_raw['success'][host] = result._result
+        # for host, result in self.results_callback.host_failed.items():
+        #     result_raw['failed'][host] = result._result
+        # for host, result in self.results_callback.host_unreachable.items():
+        #     result_raw['unreachable'][host] = result._result
+        #
+        # # 最终打印结果，并且使用 JSON 继续格式化
+        # print(json.dumps(result_raw, indent=4))
+
+
 if __name__ == '__main__':
 
-    # ansible2 = MyAnsiable2(inventory='/tmp/hosts', connection='smart')
-    #
-    # ansible2.playbook(playbooks=['/tmp/exec-command.yml'])
-    #
-    # ansible2.get_result()
+    hosts = [{
+        "ip": '192.168.10.20',
+        "port": 22,
+        "username": "root",
+        "password": "linchqd930520",
+        "private_key": "",
+        "groups": [{"name": "test", "vars": {"var": "test"}}],
+        "vars": {"var": "test"},
+    }]
+    inv = AnsInventory(host_list=hosts)
+    # runner = AdHocRunner(inventory=inv)
 
-    res = [
-        {
-            "ip": '10.0.2.15',
-            "port": 22,
-            "username": "root",
-            "vars": {"ansible_ssh_private_key_file": "~/.pkey"}
-        }
-    ]
-    inv = AnsInventory(host_list=res)
-    ansible2 = MyAnsiable2(inventory=inv, connection='smart')
-    ansible2.playbook(playbooks=['/home/test/pyweb/api/common/tasks/ansible_play/add-sshkey.yml'])
-    ansible2.get_result()
+    # t = [
+    #     {"action": {"module": "shell", "args": "ifconfig"}, "name": "teesttttek"},
+    #     {"action": {"module": "shell", "args": "whomi"}, "name": "run_whoami"}
+    # ]
+
+    # runner.run(tasks=t, pattern='all', play_name='test for runner')
+    PlayBookRunner(
+        playbook='/Users/linchqd/Desktop/dockerui/api/common/tasks/ansible_play/add-sshkey.yml',
+        inventory=inv
+    ).run()
 
