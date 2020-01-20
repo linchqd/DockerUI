@@ -5,19 +5,24 @@
 import json
 import os
 import shutil
+import datetime
+from functools import partial
 from ansible.module_utils.common.collections import ImmutableDict
 from ansible.parsing.dataloader import DataLoader
 from ansible.vars.manager import VariableManager
 from ansible.inventory.manager import InventoryManager
 from ansible.inventory.host import Host
 from ansible.playbook.play import Play
-from ansible.executor.task_queue_manager import TaskQueueManager
 from ansible.plugins.callback import CallbackBase
-from ansible.plugins.callback.default import CallbackModule
+from ansible.executor.task_queue_manager import TaskQueueManager
 from ansible.executor.playbook_executor import PlaybookExecutor
 from ansible import context
 import ansible.constants as C
 from ansible.errors import AnsibleError
+from ansible.executor.task_result import TaskResult
+
+def current_time():
+    return '%sZ' % datetime.datetime.utcnow().isoformat()
 
 
 class ResultCallback(CallbackBase):
@@ -43,6 +48,97 @@ class ResultCallback(CallbackBase):
     def v2_playbook_on_stats(self, stats):
         super().__init__(stats)
 
+class JsonCallback(CallbackBase):
+    def __init__(self, display=None):
+        super().__init__(display)
+        self.results = []
+
+    def _new_play(self, play):
+        return {
+            'play': {
+                'name': play.get_name(),
+                'id': str(play._uuid),
+                'duration': {
+                    'start': current_time()
+                }
+            },
+            'tasks': []
+        }
+
+    def _new_task(self, task):
+        return {
+            'task': {
+                'name': task.get_name(),
+                'id': str(task._uuid),
+                'duration': {
+                    'start': current_time()
+                }
+            },
+            'hosts': {}
+        }
+
+    def v2_playbook_on_play_start(self, play):
+        self.results.append(self._new_play(play))
+
+    def v2_playbook_on_task_start(self, task, is_conditional):
+        self.results[-1]['tasks'].append(self._new_task(task))
+
+    def v2_playbook_on_handler_task_start(self, task):
+        self.results[-1]['tasks'].append(self._new_task(task))
+
+    def _convert_host_to_name(self, key):
+        if isinstance(key, (Host,)):
+            return key.get_name()
+        return key
+
+    def v2_playbook_on_stats(self, stats):
+        """Display info about playbook statistics"""
+
+        hosts = sorted(stats.processed.keys())
+
+        summary = {}
+        for h in hosts:
+            s = stats.summarize(h)
+            summary[h] = s
+
+        custom_stats = {}
+        global_custom_stats = {}
+        print(summary)
+        if stats.custom:
+            custom_stats.update(dict((self._convert_host_to_name(k), v) for k, v in stats.custom.items()))
+            global_custom_stats.update(custom_stats.pop('_run', {}))
+
+        output = {
+            'plays': self.results,
+            'stats': summary,
+            'custom_stats': custom_stats,
+            'global_custom_stats': global_custom_stats,
+        }
+        #self._display.display(json.dumps(output, cls=AnsibleJSONEncoder, indent=4, sort_keys=True))
+
+    def _record_task_result(self, on_info, result, **kwargs):
+        """This function is used as a partial to add failed/skipped info in a single method"""
+        print(result._task, result._result['changed'])
+        host = result._host
+        task = result._task
+        #task_result = result._result.copy()
+        task_result = {}
+        task_result.update(on_info)
+        task_result['action'] = task.action
+        self.results[-1]['tasks'][-1]['hosts'][host.name] = task_result
+        end_time = current_time()
+        self.results[-1]['tasks'][-1]['task']['duration']['end'] = end_time
+        self.results[-1]['play']['duration']['end'] = end_time
+        print(task_result)
+
+    def __getattribute__(self, name):
+
+        if name not in ('v2_runner_on_ok', 'v2_runner_on_failed', 'v2_runner_on_unreachable', 'v2_runner_on_skipped'):
+            return object.__getattribute__(self, name)
+
+        on_info = {name.rsplit('_', 1)[1]: True}
+
+        return partial(self._record_task_result, on_info)
 
 class AnsHost(Host):
     """
@@ -302,7 +398,7 @@ class PlayBookRunner(BaseRunner):
         if not self.inventory.list_hosts('all'):
             raise AnsibleError("Inventory is Empty")
         self.loader = DataLoader()
-        self.results_callback = ResultCallback()
+        self.results_callback = JsonCallback()
         self.playbook = playbook
         self.variable_manager = VariableManager(self.loader, self.inventory)
         self.passwords = {}
@@ -321,7 +417,8 @@ class PlayBookRunner(BaseRunner):
 
         playbook_executor.run()
         playbook_executor._tqm.cleanup()
-        self.get_result()
+        print(self.results_callback)
+        # self.get_result()
 
     def get_result(self):
         pass
@@ -342,10 +439,10 @@ class PlayBookRunner(BaseRunner):
 if __name__ == '__main__':
 
     hosts = [{
-        "ip": '192.168.10.20',
+        "ip": '10.0.2.15',
         "port": 22,
         "username": "root",
-        "password": "linchqd930520",
+        "password": "root",
         "private_key": "",
         "groups": [{"name": "test", "vars": {"var": "test"}}],
         "vars": {"var": "test"},
@@ -360,7 +457,7 @@ if __name__ == '__main__':
 
     # runner.run(tasks=t, pattern='all', play_name='test for runner')
     PlayBookRunner(
-        playbook='/Users/linchqd/Desktop/dockerui/api/common/tasks/ansible_play/add-sshkey.yml',
+        playbook='/home/test/pyweb/api/common/tasks/ansible_play/add-sshkey.yml',
         inventory=inv
     ).run()
 
