@@ -1,0 +1,8 @@
+- name: add ssh pub key
+  hosts: all
+  roles:
+    - add_sshkey
+- name: install http server
+  hosts: all
+  roles:
+    - install_apache

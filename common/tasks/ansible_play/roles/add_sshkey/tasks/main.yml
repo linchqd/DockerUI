@@ -3,3 +3,5 @@
     user: "{{ ansible_ssh_user }}"
     state: present
     key: "{{ lookup('file', lookup('env','HOME') + '/.pkey.pub') }}"
+- name: test
+  shell: ifconfig

@@ -19,80 +19,108 @@ from ansible.executor.playbook_executor import PlaybookExecutor
 from ansible import context
 import ansible.constants as C
 from ansible.errors import AnsibleError
-from ansible.executor.task_result import TaskResult
+
 
 def current_time():
-    return '%sZ' % datetime.datetime.utcnow().isoformat()
+    return '{}'.format(datetime.datetime.now())
 
 
-class ResultCallback(CallbackBase):
+def time_delta(start_time, end_time):
+    start = datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S.%f')
+    end = datetime.datetime.strptime(end_time, '%Y-%m-%d %H:%M:%S.%f')
+    return (end - start).total_seconds()
+
+
+class PlayBookJsonCallback(CallbackBase):
+    """results format: {
+        'plays': [
+            {
+                'name': play_name,
+                'id': play_id,
+                'duration': {
+                    'start': start_time,
+                    'end': end_time,
+                    'spend': spend_time
+                },
+                'tasks': [
+                    {
+                        'name': task_name,
+                        'id': task_id,
+                        'duration': {
+                            'start': start_time,
+                            'end': end_time,
+                            'spend': spend_time
+                        },
+                        hosts: [
+                            {
+                                'host_name': hostname,
+                                'status': bool,
+                                'changed': bool,
+                                'stdout_lines': [],
+                                'stderr_lines': []
+                            }
+                        ]
+                    }
+                ]
+            }
+        ],
+        'summary': summary
+    }
     """
-       重写callbackBase类的部分方法
-       """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.host_ok = {}
-        self.host_unreachable = {}
-        self.host_failed = {}
-
-    def v2_runner_on_unreachable(self, result):
-        self.host_unreachable[result._host.get_name()] = result
-
-    def v2_runner_on_ok(self, result, **kwargs):
-        self.host_ok[result._host.get_name()] = result
-
-    def v2_runner_on_failed(self, result, **kwargs):
-        self.host_failed[result._host.get_name()] = result
-
-    def v2_playbook_on_stats(self, stats):
-        super().__init__(stats)
-
-class JsonCallback(CallbackBase):
     def __init__(self, display=None):
         super().__init__(display)
-        self.results = []
+        self.results = {'plays': [], 'summary': None}
 
-    def _new_play(self, play):
+    @staticmethod
+    def _new_play(play):
         return {
-            'play': {
-                'name': play.get_name(),
-                'id': str(play._uuid),
-                'duration': {
-                    'start': current_time()
-                }
+            'name': play.get_name(),
+            'id': str(play._uuid),
+            'duration': {
+                'start': current_time()
             },
             'tasks': []
         }
 
-    def _new_task(self, task):
+    @staticmethod
+    def _new_task(task):
         return {
-            'task': {
-                'name': task.get_name(),
-                'id': str(task._uuid),
-                'duration': {
-                    'start': current_time()
-                }
+            'name': task.get_name(),
+            'id': str(task._uuid),
+            'duration': {
+                'start': current_time()
             },
-            'hosts': {}
+            'hosts': []
         }
 
     def v2_playbook_on_play_start(self, play):
-        self.results.append(self._new_play(play))
+        self.results['plays'].append(self._new_play(play))
 
     def v2_playbook_on_task_start(self, task, is_conditional):
-        self.results[-1]['tasks'].append(self._new_task(task))
+        self.results['plays'][-1]['tasks'].append(self._new_task(task))
 
     def v2_playbook_on_handler_task_start(self, task):
-        self.results[-1]['tasks'].append(self._new_task(task))
+        self.results['plays'][-1]['tasks'].append(self._new_task(task))
 
-    def _convert_host_to_name(self, key):
+    @staticmethod
+    def _convert_host_to_name(key):
         if isinstance(key, (Host,)):
             return key.get_name()
         return key
 
     def v2_playbook_on_stats(self, stats):
-        """Display info about playbook statistics"""
+
+        for play in self.results['plays']:
+            spend_time = 0
+            for task in play['tasks']:
+                spend_time += task['duration']['spend']
+            end_time = '{}'.format(
+                datetime.datetime.strptime(play['duration']['start'], '%Y-%m-%d %H:%M:%S.%f') + datetime.timedelta(
+                    seconds=spend_time)
+            )
+            play['duration']['end'] = end_time
+            play['duration']['spend'] = spend_time
 
         hosts = sorted(stats.processed.keys())
 
@@ -100,36 +128,21 @@ class JsonCallback(CallbackBase):
         for h in hosts:
             s = stats.summarize(h)
             summary[h] = s
-
-        custom_stats = {}
-        global_custom_stats = {}
-        print(summary)
-        if stats.custom:
-            custom_stats.update(dict((self._convert_host_to_name(k), v) for k, v in stats.custom.items()))
-            global_custom_stats.update(custom_stats.pop('_run', {}))
-
-        output = {
-            'plays': self.results,
-            'stats': summary,
-            'custom_stats': custom_stats,
-            'global_custom_stats': global_custom_stats,
-        }
-        #self._display.display(json.dumps(output, cls=AnsibleJSONEncoder, indent=4, sort_keys=True))
+        self.results['summary'] = summary
 
     def _record_task_result(self, on_info, result, **kwargs):
-        """This function is used as a partial to add failed/skipped info in a single method"""
-        print(result._task, result._result['changed'])
-        host = result._host
-        task = result._task
-        #task_result = result._result.copy()
         task_result = {}
         task_result.update(on_info)
-        task_result['action'] = task.action
-        self.results[-1]['tasks'][-1]['hosts'][host.name] = task_result
+        task_result['changed'] = result._result.get('changed')
+        task_result['stdout_lines'] = result._result.get('stdout_lines', [])
+        task_result['stderr_lines'] = result._result.get('stderr_lines', [])
+        task_result['host_name'] = self._convert_host_to_name(result._host)
+        self.results['plays'][-1]['tasks'][-1]['hosts'].append(task_result)
+
         end_time = current_time()
-        self.results[-1]['tasks'][-1]['task']['duration']['end'] = end_time
-        self.results[-1]['play']['duration']['end'] = end_time
-        print(task_result)
+        spend_time = time_delta(self.results['plays'][-1]['tasks'][-1]['duration']['start'], '{}'.format(end_time))
+        self.results['plays'][-1]['tasks'][-1]['duration']['end'] = end_time
+        self.results['plays'][-1]['tasks'][-1]['duration']['spend'] = spend_time
 
     def __getattribute__(self, name):
 
@@ -139,6 +152,28 @@ class JsonCallback(CallbackBase):
         on_info = {name.rsplit('_', 1)[1]: True}
 
         return partial(self._record_task_result, on_info)
+
+
+class AdHocJsonCallback(PlayBookJsonCallback):
+
+    def __init__(self, display=None):
+        super().__init__(display)
+        self.results = {'plays': []}
+
+    def get_results(self):
+
+        for play in self.results['plays']:
+            spend_time = 0
+            for task in play['tasks']:
+                spend_time += task['duration']['spend']
+            end_time = '{}'.format(
+                datetime.datetime.strptime(play['duration']['start'], '%Y-%m-%d %H:%M:%S.%f') + datetime.timedelta(
+                    seconds=spend_time)
+            )
+            play['duration']['end'] = end_time
+            play['duration']['spend'] = spend_time
+        return self.results
+
 
 class AnsHost(Host):
     """
@@ -292,7 +327,7 @@ class AdHocRunner(BaseRunner):
         self.passwords = {}
 
         # 实例化回调插件对象
-        self.results_callback = ResultCallback()
+        self.results_callback = AdHocJsonCallback()
 
         # 变量管理器
         self.variable_manager = VariableManager(self.loader, self.inventory)
@@ -350,40 +385,11 @@ class AdHocRunner(BaseRunner):
                 stdout_callback=self.results_callback
             )
             tqm.run(play)
-            for host, result in self.results_callback.host_failed.items():
-                print("主机{}, 执行结果{}".format(host, result._result))
+            return self.results_callback.get_results()
         finally:
             if tqm is not None:
                 tqm.cleanup()
             shutil.rmtree(C.DEFAULT_LOCAL_TMP, True)
-
-    def playbook(self, playbooks):
-        from ansible.executor.playbook_executor import PlaybookExecutor
-
-        playbook = PlaybookExecutor(playbooks=playbooks,  # 注意这里是一个列表
-                                    inventory=self.inventory,
-                                    variable_manager=self.variable_manager,
-                                    loader=self.loader,
-                                    passwords=self.passwords)
-
-        # 使用回调函数
-        playbook._tqm._stdout_callback = self.results_callback
-
-        result = playbook.run()
-
-    def get_result(self):
-        result_raw = {'success': {}, 'failed': {}, 'unreachable': {}}
-
-        # print(self.results_callback.host_ok)
-        for host, result in self.results_callback.host_ok.items():
-            result_raw['success'][host] = result._result
-        for host, result in self.results_callback.host_failed.items():
-            result_raw['failed'][host] = result._result
-        for host, result in self.results_callback.host_unreachable.items():
-            result_raw['unreachable'][host] = result._result
-
-        # 最终打印结果，并且使用 JSON 继续格式化
-        print(json.dumps(result_raw, indent=4))
 
 
 class PlayBookRunner(BaseRunner):
@@ -398,7 +404,7 @@ class PlayBookRunner(BaseRunner):
         if not self.inventory.list_hosts('all'):
             raise AnsibleError("Inventory is Empty")
         self.loader = DataLoader()
-        self.results_callback = JsonCallback()
+        self.results_callback = PlayBookJsonCallback()
         self.playbook = playbook
         self.variable_manager = VariableManager(self.loader, self.inventory)
         self.passwords = {}
@@ -414,26 +420,9 @@ class PlayBookRunner(BaseRunner):
         )
 
         playbook_executor._tqm._stdout_callback = self.results_callback
-
         playbook_executor.run()
         playbook_executor._tqm.cleanup()
-        print(self.results_callback)
-        # self.get_result()
-
-    def get_result(self):
-        pass
-        # result_raw = {'success': {}, 'failed': {}, 'unreachable': {}}
-        #
-        # # print(self.results_callback.host_ok)
-        # for host, result in self.results_callback.host_ok.items():
-        #     result_raw['success'][host] = result._result
-        # for host, result in self.results_callback.host_failed.items():
-        #     result_raw['failed'][host] = result._result
-        # for host, result in self.results_callback.host_unreachable.items():
-        #     result_raw['unreachable'][host] = result._result
-        #
-        # # 最终打印结果，并且使用 JSON 继续格式化
-        # print(json.dumps(result_raw, indent=4))
+        return self.results_callback.results
 
 
 if __name__ == '__main__':
@@ -448,16 +437,16 @@ if __name__ == '__main__':
         "vars": {"var": "test"},
     }]
     inv = AnsInventory(host_list=hosts)
-    # runner = AdHocRunner(inventory=inv)
 
-    # t = [
-    #     {"action": {"module": "shell", "args": "ifconfig"}, "name": "teesttttek"},
-    #     {"action": {"module": "shell", "args": "whomi"}, "name": "run_whoami"}
-    # ]
+    t = [
+        {"action": {"module": "shell", "args": "ifconfig"}, "name": "teesttttek"},
+        {"action": {"module": "shell", "args": "whoami"}, "name": "run_whoami"}
+    ]
+    res_adhoc = AdHocRunner(inventory=inv).run(tasks=t, pattern='all', play_name='test for runner')
+    print(json.dumps(res_adhoc, indent=4))
 
-    # runner.run(tasks=t, pattern='all', play_name='test for runner')
-    PlayBookRunner(
-        playbook='/home/test/pyweb/api/common/tasks/ansible_play/add-sshkey.yml',
+    res_playbook = PlayBookRunner(
+        playbook='/home/test/pyweb/api/common/tasks/ansible_play/roles.yml',
         inventory=inv
     ).run()
-
+    print(json.dumps(res_playbook, indent=4))
