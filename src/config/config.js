@@ -25,13 +25,24 @@ let menus = [
   },
   {
     text: 'Wiki管理',
-    icon: 'book',
+    icon: 'folder',
     active: false,
     is_expanded: false,
     permission: 'Wiki管理员',
     secMenu: [
-      { url: '/wiki/docs/', name: 'docs', text: '文档列表', icon: 'list', active: false, is_expanded: false, permission: '' },
-      { url: '/wiki/kinds/', name: 'kinds', text: '分类列表', icon: 'list', active: false, is_expanded: false, permission: '' }
+      { url: '/wiki/docs/', name: 'docs', text: '文档列表', icon: 'file-code', active: false, is_expanded: false, permission: '' },
+      { url: '/wiki/kinds/', name: 'kinds', text: '分类列表', icon: 'file', active: false, is_expanded: false, permission: '' }
+    ]
+  },
+  {
+    text: '配置中心',
+    icon: 'cog',
+    active: false,
+    is_expanded: false,
+    permission: '配置管理员',
+    secMenu: [
+      { url: '/configs/env/', name: 'env', text: '环境管理', icon: 'th-large', active: false, is_expanded: false, permission: '' },
+      { url: '/configs/conf/', name: 'conf', text: '配置管理', icon: 'file-code', active: false, is_expanded: false, permission: '' }
     ]
   }
 ]

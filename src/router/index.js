@@ -36,7 +36,9 @@ const routes = [
       { path: 'wiki/docs/docAdd', name: 'docs_Add', component: () => import('../components/wiki/DocAdd.vue'), meta: { permission: true } },
       { path: 'wiki/docs/docEdit/:id', name: 'docs_Edit', component: () => import('../components/wiki/DocAdd.vue'), meta: { permission: true } },
       { path: 'wiki/docs/docView/:id', name: 'docs_View', component: () => import('../components/wiki/DocView.vue'), meta: { permission: true } },
-      { path: 'wiki/kinds/', name: 'kinds', component: () => import('../components/wiki/Kind.vue'), meta: { permission: true } }
+      { path: 'wiki/kinds/', name: 'kinds', component: () => import('../components/wiki/Kind.vue'), meta: { permission: true } },
+      // configs
+      { path: 'configs/env/', name: 'env', component: () => import('../components/configs/Env.vue'), meta: { permission: true } }
     ]
   },
   {
