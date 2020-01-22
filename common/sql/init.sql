@@ -35,6 +35,12 @@ INSERT INTO permissions (id, name, `desc`, `ctime`) VALUES (604, 'server_modify'
 INSERT INTO permissions (id, name, `desc`, `ctime`) VALUES (605, 'server_get', '查看服务器列表', '{}');
 INSERT INTO permissions (id, name, `desc`, `ctime`) VALUES (606, 'server_webssh', '服务器webssh', '{}');
 
+-- Environment
+INSERT INTO permissions (id, name, `desc`, `ctime`) VALUES (701, 'env_add', '添加环境', '{}');
+INSERT INTO permissions (id, name, `desc`, `ctime`) VALUES (702, 'env_delete', '删除环境', '{}');
+INSERT INTO permissions (id, name, `desc`, `ctime`) VALUES (703, 'env_modify', '修改环境', '{}');
+INSERT INTO permissions (id, name, `desc`, `ctime`) VALUES (704, 'env_get', '查看环境', '{}');
+
 -- default superuser / role
 INSERT INTO users (id, `name`, `cname`, `email`, `phone_number`, `pwd_hash`, `is_super`, `status`, `ctime`) values (1, 'admin', 'admin', 'admin@admin.com', '13888888888', 'pbkdf2:sha256:150000$ymlosmY7$184ddd6854ef11252a8a0f5b78511773548bb5e9ccf7460360d936d4b72e8bf1', True, True, '{}');
 INSERT INTO roles (id, name, `desc`, `ctime`) VALUES (1, '账户管理员', '账户管理者,可以对用户/用户组进行增删改查操作', '{}');

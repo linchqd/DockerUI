@@ -40,6 +40,7 @@ def init_db():
     from resources.accounts import models
     from resources.assets import models
     from resources.wiki import models
+    from resources.config import models
     user_input = input('是否要初始化数据库，该操作会清空所有数据[y|n]？')
     if user_input.strip() == 'y':
         db.drop_all()
