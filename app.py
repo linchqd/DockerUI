@@ -14,25 +14,57 @@ import config
 
 
 # logging setting
+# https://blog.csdn.net/jeffery0207/article/details/95856490
+class LogFilter(logging.Filter):
+    def filter(self, record):
+        if record.levelno > 30:
+            return False
+        return True
+
+
 log_dir = os.path.join(os.path.dirname(os.path.abspath(__name__)), 'logs/')
 os.makedirs(log_dir, exist_ok=True)
 dictConfig({
     'version': 1,
-    'formatters': {'default': {
-        'format': '%(asctime)s %(levelname)s: %(filename)s:%(module)s:%(funcName)s:%(lineno)d:%(message)s',
-    }},
-    'handlers': {'file': {
-        'class': 'logging.handlers.TimedRotatingFileHandler',
-        'filename': '{}api.log'.format(log_dir),
-        'when': 'D',
-        'interval': 1,
-        'backupCount': 7,
-        'encoding': 'utf-8',
-        'formatter': 'default'
-    }},
+    'formatters': {
+        'access': {
+            'format': '%(asctime)s %(levelname)s: %(message)s'
+        },
+        'error': {
+            'format': '%(asctime)s %(levelname)s: %(filename)s:%(module)s:%(funcName)s:%(lineno)d:%(message)s'
+        }
+    },
+    'handlers': {
+        'access': {
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'level': 'INFO',
+            'filename': '{}access.log'.format(log_dir),
+            'when': 'D',
+            'interval': 1,
+            'backupCount': 7,
+            'encoding': 'utf-8',
+            'formatter': 'access',
+            'filters': ['access']
+        },
+        'error': {
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'level': 'ERROR',
+            'filename': '{}error.log'.format(log_dir),
+            'when': 'D',
+            'interval': 1,
+            'backupCount': 7,
+            'encoding': 'utf-8',
+            'formatter': 'error'
+        }
+    },
+    'filters': {
+        'access': {
+            '()': LogFilter
+        }
+    },
     'root': {
         'level': 'INFO',
-        'handlers': ['file']
+        'handlers': ['access', 'error']
     }
 })
 
